@@ -1,0 +1,9 @@
+node_modules/
+respaldos/
+tests/foto.png
+tests/resultados-e2e.json
+*-debug.log
+.firebase/
+# Claves privadas de cuentas de servicio: nunca al repositorio
+*service-account*.json
+clave*.json

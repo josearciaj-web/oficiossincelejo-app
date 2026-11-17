@@ -1,0 +1,86 @@
+rules_version = '2';
+// Reglas de seguridad de OficiosSincelejo (Cloud Firestore).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function conSesion() { return request.auth != null; }
+    function registrado() { return conSesion() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function esAdmin() { return conSesion() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function soloCambia(campos) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos); }
+    function whatsappValido() { return request.resource.data.whatsapp is string && request.resource.data.whatsapp.matches('^3[0-9]{9}$'); }
+    function tamanos() {
+      return request.resource.data.nombre is string && request.resource.data.nombre.size() <= 60
+        && request.resource.data.descripcion is string && request.resource.data.descripcion.size() <= 300
+        && request.resource.data.miniatura is string && request.resource.data.miniatura.size() < 40000
+        && request.resource.data.fotos is list && request.resource.data.fotos.size() <= 6;
+    }
+
+    // Administradores: se crean a mano en la consola (documento con el UID).
+    match /admins/{uid} {
+      allow read: if conSesion() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Perfiles de trabajadores. Solo los aprobados son públicos.
+    match /trabajadores/{uid} {
+      allow read: if resource.data.estado == 'aprobado' || (conSesion() && request.auth.uid == uid) || esAdmin();
+      allow create: if registrado() && request.auth.uid == uid
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.destacado == false
+        && request.resource.data.cedulaVerificada == false
+        && request.resource.data.autorizacion == true
+        && whatsappValido() && tamanos();
+      // Registro asistido: el administrador crea perfiles de trabajadores sin cuenta.
+      allow create: if esAdmin() && request.resource.data.autorizacion == true && whatsappValido() && tamanos();
+      allow update: if esAdmin() || (registrado() && request.auth.uid == uid
+        && soloCambia(['nombre', 'oficio', 'whatsapp', 'experiencia', 'zonas', 'descripcion', 'miniatura', 'fotos', 'actualizado', 'disponible', 'solicitudDestacado', 'estado'])
+        && (request.resource.data.estado == resource.data.estado || (resource.data.estado == 'rechazado' && request.resource.data.estado == 'pendiente'))
+        && whatsappValido() && tamanos());
+      allow delete: if esAdmin() || (conSesion() && request.auth.uid == uid);
+    }
+
+    // Fotos de trabajos (comprimidas en el navegador, máx. 250 KB cada una).
+    match /fotos/{uid}/items/{fid} {
+      allow read: if true;
+      allow create: if ((registrado() && request.auth.uid == uid) || esAdmin())
+        && request.resource.data.data is string && request.resource.data.data.size() < 250000;
+      allow delete: if (conSesion() && request.auth.uid == uid) || esAdmin();
+    }
+
+    // Calificaciones: un documento por persona y trabajador (id = uid__tid), de 1 a 5 estrellas.
+    match /resenas/{rid} {
+      allow read: if true;
+      allow create, update: if registrado()
+        && rid == request.auth.uid + '__' + request.resource.data.tid
+        && request.resource.data.keys().hasOnly(['autor', 'tid', 'e', 'c', 'f'])
+        && request.resource.data.autor == request.auth.uid
+        && request.resource.data.tid is string && request.resource.data.tid.size() <= 64
+        && request.resource.data.e is int && request.resource.data.e >= 1 && request.resource.data.e <= 5
+        && request.resource.data.c is string && request.resource.data.c.size() <= 300
+        && request.resource.data.f is string;
+      allow delete: if esAdmin() || (registrado() && resource.data.autor == request.auth.uid);
+    }
+
+    // Clics en el botón de WhatsApp (indicador del piloto). Un documento por sesión y trabajador
+    // (id = uid__tid). Solo se crea en 1 y solo sube de 1 en 1. Vale también la sesión anónima.
+    match /contactos/{cid} {
+      allow read: if true;
+      allow create: if conSesion()
+        && cid == request.auth.uid + '__' + request.resource.data.tid
+        && request.resource.data.keys().hasOnly(['tid', 'n'])
+        && request.resource.data.tid is string && request.resource.data.tid.size() <= 64
+        && request.resource.data.n == 1;
+      allow update: if conSesion()
+        && cid == request.auth.uid + '__' + resource.data.tid
+        && request.resource.data.keys().hasOnly(['tid', 'n'])
+        && request.resource.data.tid == resource.data.tid
+        && request.resource.data.n == resource.data.n + 1;
+    }
+
+    // Reportes de perfiles: solo los ve quien reporta y el administrador.
+    match /reportes/{uid} {
+      allow read: if esAdmin() || (conSesion() && request.auth.uid == uid);
+      allow create, update: if (registrado() && request.auth.uid == uid) || esAdmin();
+    }
+  }
+}
