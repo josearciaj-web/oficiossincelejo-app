@@ -152,6 +152,10 @@
   }
   function rating(tid) { const r = resenasDe(tid); const n = r.length; return { n, avg: n ? r.reduce((s, x) => s + x.e, 0) / n : 0 }; }
   function contactosDe(tid) { let n = 0; for (const d of S.contactos) n += (d.items && d.items[tid]) || 0; return n; }
+  const pesos = (n) => '$ ' + Math.round(Number(n) || 0).toLocaleString('es-CO').replace(/,/g, '.');
+  const tarifaTxt = (t) => (t.tarifa > 0 ? pesos(t.tarifa) : 'A convenir');
+  const COLOR_OFICIO = { plomeria: '#16618F', electricidad: '#B26A0B', albanileria: '#8A5634', pintura: '#93356A', aseo: '#2F7A68', tecnico: '#4B5899', carpinteria: '#7A4E2D', cerrajeria: '#59607A', refrigeracion: '#237782', soldadura: '#8C4526', techos: '#6E5D3F', jardineria: '#3B7A36', mecanica: '#4A5664', modisteria: '#87418A', cuidado: '#A9475A', fumigacion: '#5A7A2A', mudanzas: '#5F52B8', otro: '#475260' };
+  const colorOficio = (o) => COLOR_OFICIO[o] || COLOR_OFICIO.otro;
   const miResena = (tid) => { const d = S.resenas.find((x) => x.id === S.me.uid); return d && d.items && d.items[tid]; };
 
   // ---------- Esqueleto ----------
@@ -160,7 +164,7 @@
     const demo = B().mode === 'demo';
     app.innerHTML = `
       <header class="top"><div class="wrap">
-        <button class="logo" id="go-home" aria-label="Ir al inicio">OficiosSincelejo <span class="tag">Sucre</span></button>
+        <button class="logo" id="go-home" aria-label="Ir al inicio"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3 20h5l4-8 4 8h5z" fill="currentColor"/><circle cx="12" cy="17" r="1.8" fill="currentColor"/></svg></span><span class="lt">Oficios</span><span class="lt2">Sincelejo</span></button>
         <div class="who small" id="who"></div>
       </div></header>
       ${demo ? `<div class="demo"><div class="wrap"><strong>${window.__SIN_CONFIG ? 'Modo demostración: falta conectar Firebase. Los datos son de ejemplo y no se guardan.' : 'Prototipo con datos de ejemplo.'}</strong>
@@ -191,6 +195,7 @@
     const v = $('#view'); window.scrollTo(0, 0); v.focus({ preventScroll: true });
   }
   function render() {
+    const vv = $('#view'); if (vv) vv.classList.toggle('narrow', S.view !== 'buscar');
     if (!S.loaded) { $('#view').innerHTML = '<div class="empty"><h3>Cargando trabajadores…</h3></div>'; return; }
     if (S.view === 'buscar') return renderBuscar();
     if (S.view === 'perfil') return renderPerfil();
@@ -252,15 +257,20 @@
       .sort((a, b) => (b.d - a.d) || ((b.t.disponible ? 1 : 0) - (a.t.disponible ? 1 : 0)) || (b.r.avg - a.r.avg) || (b.r.n - a.r.n) || a.t.nombre.localeCompare(b.t.nombre));
   }
   function tarjeta({ t, r, d }) {
-    return `<button class="w ${d ? 'dest' : ''}" data-perfil="${esc(t.id)}">
-      <img class="av" src="${esc(fotoPerfil(t))}" alt="">
-      <span class="meta">
-        <span class="row" style="gap:6px">${d ? '<span class="badge b-sun">Destacado</span>' : ''}${t.cedulaVerificada ? '<span class="badge b-ok">Cédula verificada</span>' : ''}</span>
-        <span class="name">${esc(t.nombre)}</span>
-        <span class="oficio">${icon(t.oficio)}${esc(oficioN(t.oficio))}</span>
-        <span>${stars(r.avg, r.n)}</span>
-        <span class="small muted">${t.disponible ? '<span class="dot" style="background:var(--brand)"></span> Disponible' : '<span class="dot" style="background:var(--muted)"></span> No disponible ahora'} · ${esc(t.experiencia || 0)} años · ${esc((t.zonas || []).slice(0, 3).join(', '))}${(t.zonas || []).length > 3 ? '…' : ''}</span>
-      </span></button>`;
+    const c = colorOficio(t.oficio);
+    const tile = (k) => `<span class="tile" style="background:${c}${k ? ';filter:brightness(' + (1 - k * 0.06) + ')' : ''}">${icon(t.oficio)}</span>`;
+    const foto = t.miniatura ? `<span class="tile foto"><img src="${esc(t.miniatura)}" alt="Foto de ${esc(t.nombre)}" loading="lazy"></span>` : tile(0);
+    return `<article class="w ${d ? 'dest' : ''}" data-perfil="${esc(t.id)}" tabindex="-1">
+      <div class="strip">${foto}${tile(1)}${tile(2)}</div>
+      <div class="meta">
+        ${d ? '<span class="badge b-sun">★ Destacado</span>' : ''}
+        <div class="nameline"><span class="name">${esc(t.nombre)}</span>${t.cedulaVerificada ? '<span class="ok-txt">✓ Cédula verificada</span>' : ''}</div>
+        <span class="sub"><span class="oficio">${icon(t.oficio)}${esc(oficioN(t.oficio))}</span> · ${esc(t.experiencia || 0)} ${Number(t.experiencia) === 1 ? 'año' : 'años'} de experiencia</span>
+        <span class="sub">${r.n ? stars(r.avg, r.n) : 'Sin reseñas todavía'}</span>
+        <span class="precio">Visita desde <strong>${esc(tarifaTxt(t))}</strong> <span class="muted small">tarifa base</span></span>
+        <span class="sub">${t.disponible ? '<span class="dot on"></span>Disponible' : '<span class="dot"></span>No disponible ahora'} · ${esc((t.zonas || []).slice(0, 3).join(', '))}${(t.zonas || []).length > 3 ? '…' : ''}</span>
+        <div class="acts"><button type="button" class="btn ver">Ver perfil</button><a class="btn wa" href="${esc(waLink(t))}" target="_blank" rel="noopener" data-wa="${esc(t.id)}">${icon('wa')} WhatsApp</a></div>
+      </div></article>`;
   }
   function renderResultados() {
     const box = $('#resultados'); if (!box) return;
@@ -272,7 +282,8 @@
     } else {
       box.innerHTML = `<p class="small muted" style="margin:0 0 8px">${res.length} ${res.length === 1 ? 'trabajador' : 'trabajadores'}</p><div class="list">${res.map(tarjeta).join('')}</div>`;
     }
-    box.querySelectorAll('[data-perfil]').forEach((b) => (b.onclick = () => go('perfil', b.dataset.perfil)));
+    box.querySelectorAll('.w[data-perfil]').forEach((b) => (b.onclick = (e) => { if (e.target.closest('[data-wa]')) return; go('perfil', b.dataset.perfil); }));
+    box.querySelectorAll('[data-wa]').forEach((a) => (a.onclick = (e) => { e.stopPropagation(); registrarContacto(a.dataset.wa); }));
     box.querySelectorAll('[data-go2]').forEach((b) => (b.onclick = () => go(b.dataset.go2)));
   }
 
@@ -309,11 +320,12 @@
         </div>
         <dl class="kv">
           <dt>Disponibilidad</dt><dd>${t.disponible ? '<strong style="color:var(--brand)">Disponible</strong>' : 'No disponible ahora'}</dd>
+          <dt>Visita o diagnóstico</dt><dd><strong>${esc(tarifaTxt(t))}</strong> <span class="muted small">tarifa base</span></dd>
           <dt>Experiencia</dt><dd>${esc(t.experiencia || 0)} años</dd>
           <dt>Atiende en</dt><dd>${esc((t.zonas || []).join(', ') || 'Sin zonas')}</dd>
         </dl>
         ${t.descripcion ? `<p style="margin:0">${esc(t.descripcion)}</p>` : ''}
-        <a class="btn primary big" id="wa" href="${esc(waLink(t))}" target="_blank" rel="noopener">${icon('wa')} Escribir por WhatsApp</a>
+        <a class="btn wa big" id="wa" href="${esc(waLink(t))}" target="_blank" rel="noopener">${icon('wa')} Escribir por WhatsApp</a>
         <div class="row small muted" style="justify-content:center">WhatsApp: <span class="phone">${esc(waNumero(t.whatsapp))}</span>
           <button class="btn sm" id="copiar">Copiar número</button></div>
       </div>
@@ -496,7 +508,8 @@
         <label class="f">Nombre completo<input type="text" id="fw-n" maxlength="60" autocomplete="name" value="${esc(t.nombre || '')}"></label>
         <label class="f">Oficio principal<select id="fw-o">${OFICIOS.map((o) => `<option value="${o.id}" ${t.oficio === o.id ? 'selected' : ''}>${o.n}</option>`).join('')}</select></label>
         <label class="f">Número de WhatsApp <span class="hint">10 dígitos, empieza por 3. Ej: 3001234567</span><input type="tel" id="fw-w" inputmode="numeric" maxlength="10" value="${esc(waNumero(t.whatsapp))}"></label>
-        <label class="f">Años de experiencia<input type="number" id="fw-x" min="0" max="60" inputmode="numeric" value="${esc(t.experiencia != null ? t.experiencia : '')}"></label>
+        <div class="two"><label class="f">Años de experiencia<input type="number" id="fw-x" min="0" max="60" inputmode="numeric" value="${esc(t.experiencia != null ? t.experiencia : '')}"></label>
+        <label class="f">Tarifa de visita o diagnóstico (COP) <span class="hint">Lo mínimo que cobras por ir y revisar</span><input type="number" id="fw-t" min="0" max="2000000" step="1000" inputmode="numeric" placeholder="30000" value="${esc(t.tarifa != null ? t.tarifa : '')}"></label></div>
         <div class="f" style="display:flex;flex-direction:column;gap:6px"><strong>Barrios donde trabajas</strong><span class="hint small muted">Toca para marcar. Si vas a cualquier barrio, marca "Toda la ciudad".</span>
           <div class="zonas" id="fw-z">${BARRIOS.map((b) => `<button type="button" class="chip" data-z="${esc(b)}" aria-pressed="${st.zonas.has(b)}">${esc(b)}</button>`).join('')}</div></div>
         <label class="f">Cuéntale a los hogares qué haces <span class="hint">Máximo 300 caracteres</span><textarea id="fw-d" maxlength="300" placeholder="Ej: Arreglo fugas, instalo sanitarios y lavaplatos. Llevo mis herramientas.">${esc(t.descripcion || '')}</textarea></label>
@@ -549,10 +562,12 @@
       const nombre = $('#fw-n').value.trim().replace(/\s+/g, ' ');
       const wa = waNumero($('#fw-w').value);
       const exp = parseInt($('#fw-x').value, 10);
+      const tarifa = parseInt(String($('#fw-t').value).replace(/\D/g, ''), 10);
       const fallas = [];
       if (nombre.length < 5 || nombre.split(' ').length < 2) fallas.push('Escribe tu nombre y apellido.');
       if (!/^3\d{9}$/.test(wa)) fallas.push('El WhatsApp debe tener 10 dígitos y empezar por 3.');
       if (isNaN(exp) || exp < 0 || exp > 60) fallas.push('Escribe tus años de experiencia (0 a 60).');
+      if (isNaN(tarifa) || tarifa < 0 || tarifa > 2000000) fallas.push('Escribe cuánto cobras por la visita (en pesos, hasta 2.000.000).');
       if (!st.zonas.size) fallas.push('Marca al menos un barrio donde trabajas.');
       if ((!adminTarget || asistido) && !$('#fw-aut').checked) fallas.push(asistido ? 'Marca que el trabajador autorizó el tratamiento de sus datos.' : 'Debes autorizar el tratamiento de tus datos para publicar tu perfil.');
       if (fallas.length) { er.innerHTML = fallas.map(esc).join('<br>'); er.hidden = false; er.scrollIntoView({ block: 'center' }); return; }
@@ -563,7 +578,7 @@
         for (const id of st.borrar) { try { await B().borrarFoto(ownerUid, id); } catch (x) { /* foto huérfana, no bloquea */ } }
         delete S.fotosCache[ownerUid];
         const datos = {
-          nombre, oficio: $('#fw-o').value, whatsapp: wa, experiencia: exp, zonas: BARRIOS.filter((b) => st.zonas.has(b)),
+          nombre, oficio: $('#fw-o').value, whatsapp: wa, experiencia: exp, tarifa, zonas: BARRIOS.filter((b) => st.zonas.has(b)),
           descripcion: $('#fw-d').value.trim().slice(0, 300), miniatura: st.miniatura || '', fotos: st.existentes.concat(nuevosIds).slice(0, MAX_FOTOS),
           actualizado: new Date().toISOString()
         };
@@ -612,7 +627,7 @@
     return `<div class="card stack" data-t="${esc(t.id)}">
       <div class="row" style="flex-wrap:nowrap;align-items:flex-start;gap:12px"><img class="av" src="${esc(fotoPerfil(t))}" alt="">
         <div class="stack" style="gap:4px;min-width:0"><strong>${esc(t.nombre)}</strong><span class="oficio">${esc(oficioN(t.oficio))}</span>
-        <span class="small muted">WhatsApp ${esc(waNumero(t.whatsapp))} · ${esc(t.experiencia)} años · ${esc((t.zonas || []).join(', '))}</span>
+        <span class="small muted">WhatsApp ${esc(waNumero(t.whatsapp))} · ${esc(t.experiencia)} años · Visita ${esc(tarifaTxt(t))} · ${esc((t.zonas || []).join(', '))}</span>
         <span class="row" style="gap:6px">${estadoBadge(t)}${t.cedulaVerificada ? '<span class="badge b-ok">Cédula verificada</span>' : '<span class="badge b-muted">Cédula sin verificar</span>'}${destacadoActivo(t) ? '<span class="badge b-sun">Destacado hasta ' + esc(fechaCorta(t.destacadoHasta)) + '</span>' : ''}</span></div></div>
       ${t.descripcion ? `<p class="small" style="margin:0">${esc(t.descripcion)}</p>` : ''}
       <div class="row">${acciones}</div><div class="slot"></div></div>`;
@@ -700,7 +715,7 @@
   function politicaHTML() {
     return `<h3>Política de tratamiento de datos personales</h3>
       <p>OficiosSincelejo es un proyecto académico de estudiantes de Ingeniería de Sistemas de la Corporación Universitaria del Caribe (CECAR). Esta política aplica la Ley 1581 de 2012.</p>
-      <h3>Qué datos recogemos</h3><p>De los trabajadores: nombre, oficio, número de WhatsApp, años de experiencia, barrios donde trabaja, descripción y fotos. De los hogares: las calificaciones, comentarios y reportes que escriben. No pedimos ni guardamos el número de cédula: el equipo la revisa en persona y solo registra si fue verificada.</p>
+      <h3>Qué datos recogemos</h3><p>De los trabajadores: nombre, oficio, número de WhatsApp, años de experiencia, tarifa de visita, barrios donde trabaja, descripción y fotos. De los hogares: las calificaciones, comentarios y reportes que escriben. No pedimos ni guardamos el número de cédula: el equipo la revisa en persona y solo registra si fue verificada.</p>
       <h3>Para qué los usamos</h3><p>Para publicar el perfil del trabajador y que los hogares de Sincelejo lo contacten por WhatsApp, y para medir cuántos contactos y calificaciones recibe. No vendemos ni compartimos los datos con terceros.</p>
       <h3>Tus derechos</h3><p>Puedes conocer, actualizar y corregir tus datos desde <strong>Soy trabajador</strong>, y eliminar tu perfil con el botón <strong>Eliminar mi perfil</strong>. También puedes revocar la autorización escribiendo al equipo del proyecto.</p>`;
   }

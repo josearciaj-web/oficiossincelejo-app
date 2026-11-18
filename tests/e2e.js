@@ -67,7 +67,7 @@ caso('CP05', 'RF01, RF02', 'Registro de un trabajador nuevo con fotos', 'El perf
   await page.fill('#fw-n', 'Eder Julio Sierra');
   await page.selectOption('#fw-o', 'plomeria');
   await page.fill('#fw-w', '3015550000');
-  await page.fill('#fw-x', '7');
+  await page.fill('#fw-x', '7'); await page.fill('#fw-t', '30000');
   await page.click('[data-z="Majagual"]');
   await page.fill('#fw-d', 'Plomería general y destapes.');
   await page.setInputFiles('#fw-pf', IMG);
@@ -83,20 +83,20 @@ caso('CP05', 'RF01, RF02', 'Registro de un trabajador nuevo con fotos', 'El perf
   if (!/revisión/.test(ban) || fotos !== '2/6') throw new Error(ban + ' ' + fotos);
   return `Perfil en revisión, fotos ${fotos}, guardado en ${Date.now() - t0} ms`;
 });
-caso('CP06', 'RF01', 'Validación del formulario vacío', 'El sistema no guarda y muestra los 5 errores', async (b) => {
+caso('CP06', 'RF01', 'Validación del formulario vacío', 'El sistema no guarda y muestra los 6 errores', async (b) => {
   const { ctx, page } = await abrir(b, 'nuevo');
   await nav(page, 'trabajador');
   await page.click('#fw-ok');
   const err = await page.innerHTML('#fw-err');
   await ctx.close();
   const n = err.split('<br>').length;
-  if (n !== 5) throw new Error(err);
-  return '5 mensajes: nombre, WhatsApp, experiencia, barrio y autorización';
+  if (n !== 6) throw new Error(err);
+  return '6 mensajes: nombre, WhatsApp, experiencia, tarifa, barrio y autorización';
 });
 caso('CP07', 'RNF05', 'Autorización de datos obligatoria (Ley 1581)', 'Sin marcar la autorización el perfil no se envía', async (b) => {
   const { ctx, page } = await abrir(b, 'nuevo');
   await nav(page, 'trabajador');
-  await page.fill('#fw-n', 'Eder Julio Sierra'); await page.fill('#fw-w', '3015550000'); await page.fill('#fw-x', '7'); await page.click('[data-z="Majagual"]');
+  await page.fill('#fw-n', 'Eder Julio Sierra'); await page.fill('#fw-w', '3015550000'); await page.fill('#fw-x', '7'); await page.fill('#fw-t', '30000'); await page.click('[data-z="Majagual"]');
   await page.click('#fw-ok');
   const err = await page.textContent('#fw-err');
   await page.click('#fw-pol');
@@ -260,7 +260,7 @@ caso('CP20', 'RNF06', 'Escape de HTML en datos del usuario (OWASP ASVS V5)', 'Un
   const { ctx, page } = await abrir(b, 'nuevo');
   await nav(page, 'trabajador');
   await page.fill('#fw-n', 'Pepe <img src=x onerror="window.__xss=1"> Ruiz');
-  await page.fill('#fw-w', '3015550000'); await page.fill('#fw-x', '2'); await page.click('[data-z="Centro"]'); await page.check('#fw-aut');
+  await page.fill('#fw-w', '3015550000'); await page.fill('#fw-x', '2'); await page.fill('#fw-t', '30000'); await page.click('[data-z="Centro"]'); await page.check('#fw-aut');
   await page.click('#fw-ok');
   await page.waitForSelector('.banner.warn');
   await page.selectOption('#demo-rol', 'admin'); await page.waitForTimeout(250);
@@ -304,7 +304,7 @@ caso('CP23', 'RF15', 'Registro asistido por el administrador', 'El administrador
   const datos = [['Luis Carlos Mendoza', 'refrigeracion', '3011112233', true], ['Rosa Elena Pérez', 'modisteria', '3024445566', false]];
   for (const [n, o, w, pub] of datos) {
     await page.click('#adm-nuevo');
-    await page.fill('#fw-n', n); await page.selectOption('#fw-o', o); await page.fill('#fw-w', w); await page.fill('#fw-x', '5');
+    await page.fill('#fw-n', n); await page.selectOption('#fw-o', o); await page.fill('#fw-w', w); await page.fill('#fw-x', '5'); await page.fill('#fw-t', '40000');
     await page.click('[data-z="Boston"]'); await page.check('#fw-aut'); await page.check('#fw-ced');
     if (!pub) await page.uncheck('#fw-pub');
     await page.click('#fw-ok'); await page.waitForSelector('#adm-nuevo');
@@ -318,6 +318,18 @@ caso('CP23', 'RF15', 'Registro asistido por el administrador', 'El administrador
   await ctx.close();
   if (res.length !== 1 || !pend.includes('Rosa Elena Pérez') || chips !== 19) throw new Error(res + ' ' + chips);
   return `2 perfiles creados con una sola cuenta: uno publicado (visible en Refrigeración y aires) y otro en "Por aprobar". 18 oficios en el catálogo más el botón Todos`;
+});
+
+caso('CP24', 'RF16', 'Tarifa de visita en la búsqueda y el perfil', 'Cada tarjeta muestra "Visita desde" con la tarifa del trabajador, y el perfil la repite', async (b) => {
+  const { ctx, page } = await abrir(b);
+  await page.click('[data-of="plomeria"]');
+  const card = await page.textContent('#resultados .w[data-perfil="w1"] .precio');
+  await page.click('#resultados .w[data-perfil="w1"] .ver');
+  await page.waitForSelector('#perfil-datos .kv');
+  const perfil = await page.textContent('#perfil-datos .kv');
+  await ctx.close();
+  if (!/Visita desde\s*\$\s*30\.000/.test(card) || !/30\.000/.test(perfil)) throw new Error(card + ' | ' + perfil.slice(0, 80));
+  return 'Tarjeta: "' + card.replace(/\s+/g, ' ').trim() + '"; el perfil muestra la misma tarifa';
 });
 
 (async () => {

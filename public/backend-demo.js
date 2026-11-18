@@ -28,7 +28,7 @@
   const T = {}, F = {};
   base.forEach(([id, nombre, oficio, wa, exp, zonas, desc, estado, disp, ced, dest, fotos]) => {
     F[id] = {}; const ids = fotos.map((txt, i) => { const fid = id + 'f' + i; F[id][fid] = foto(oficio, txt); return fid; });
-    T[id] = { id, nombre, oficio, whatsapp: wa, experiencia: exp, zonas, descripcion: desc, estado, disponible: disp, cedulaVerificada: ced, destacado: dest, destacadoHasta: dest ? hoy(18) : '', solicitudDestacado: id === 'w4', motivoRechazo: '', miniatura: avatar(nombre, oficio), fotos: ids, autorizacion: true, creado: iso(-30), actualizado: iso(-2) };
+    T[id] = { id, nombre, oficio, whatsapp: wa, experiencia: exp, tarifa: ({ plomeria: 30000, electricidad: 35000, pintura: 40000, aseo: 60000, albanileria: 50000, tecnico: 30000, carpinteria: 40000, cerrajeria: 25000 })[oficio] || 30000, zonas, descripcion: desc, estado, disponible: disp, cedulaVerificada: ced, destacado: dest, destacadoHasta: dest ? hoy(18) : '', solicitudDestacado: id === 'w4', motivoRechazo: '', miniatura: avatar(nombre, oficio), fotos: ids, autorizacion: true, creado: iso(-30), actualizado: iso(-2) };
   });
   T.w2.destacado = false; T.w2.destacadoHasta = '';
   const R = {
