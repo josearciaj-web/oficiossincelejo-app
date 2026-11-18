@@ -27,6 +27,22 @@
   ];
   const BARRIOS = ['Toda la ciudad', 'Centro', 'Majagual', 'Boston', 'Venecia', 'La Ford', 'San Carlos', 'Mochila', 'El Bosque', 'La Selva',
     'Las Margaritas', 'Pioneros', 'Villa Paz', 'Uribe Uribe', 'Puerta Roja', 'Florencia', 'Las Delicias', 'El Cortijo', 'Altos del Rosario', 'Villa Orieta'];
+  // Perfiles de demostración (personas ficticias). Se cargan y se borran desde el panel de administración.
+  // Su WhatsApp es el número del equipo que el administrador escribe al cargarlos.
+  const DEMO_TRABAJADORES = [
+    ['Álvaro Enrique Tovar Mercado', 'plomeria', 14, 30000, ['La Selva', 'Boston', 'Majagual', 'Centro'], 'Arreglo fugas, destapo cañerías e instalo sanitarios, lavaplatos y tanques. Llevo mi herramienta.', true, true],
+    ['Jader Manuel Hoyos Arrieta', 'electricidad', 9, 35000, ['Majagual', 'San Carlos', 'Venecia', 'La Ford'], 'Instalaciones eléctricas, cambio de breakers, tomas y lámparas. Reviso cortos y bajones de luz.', true, true],
+    ['Ana Milena Julio Pérez', 'aseo', 6, 60000, ['Villa Paz', 'Las Delicias', 'Pioneros', 'Mochila'], 'Aseo general por día o medio día: cocina, baños, pisos y ropa. Puntual y con referencias.', true, false],
+    ['Luis Carlos Mendoza Barrios', 'refrigeracion', 11, 40000, ['Toda la ciudad'], 'Mantenimiento e instalación de aires minisplit, carga de gas y revisión de neveras.', true, false],
+    ['Wilfrido Antonio Ortega Díaz', 'albanileria', 22, 50000, ['El Bosque', 'Las Margaritas', 'Venecia', 'Altos del Rosario'], 'Enchapes, pisos, repellos, muros y remodelación de baños y cocinas.', true, false],
+    ['Edilberto José Monterrosa Paternina', 'pintura', 12, 45000, ['Toda la ciudad'], 'Pintura de interiores y fachadas, estuco y resanes. Entrego la casa limpia.', false, false],
+    ['Remberto Arrieta Lambraño', 'cerrajeria', 16, 25000, ['Centro', 'San Carlos', 'Uribe Uribe', 'Majagual'], 'Apertura de puertas, cambio de guardas y chapas, y copias de llaves a domicilio.', true, false],
+    ['Hernando Buelvas Peña', 'tecnico', 10, 30000, ['Toda la ciudad'], 'Reparación de lavadoras, neveras, estufas y microondas. Diagnóstico en tu casa.', true, false],
+    ['Kelly Johana Tapia Ríos', 'cuidado', 5, 50000, ['Boston', 'Venecia', 'La Ford'], 'Cuidado de adultos mayores y niños por horas o por turnos. Curso de primeros auxilios.', true, false],
+    ['Ovidio Rafael Mestra Ruiz', 'carpinteria', 20, 40000, ['La Selva', 'Mochila', 'Pioneros', 'Florencia'], 'Muebles a la medida, clósets y puertas. Reparo muebles de madera.', false, false],
+    ['Rosa Elena Pérez Salgado', 'modisteria', 18, 15000, ['Uribe Uribe', 'Centro', 'La Ford'], 'Arreglos de ropa, ruedos, cierres, uniformes escolares y cortinas.', false, false],
+    ['Teófilo Vergara Tous', 'soldadura', 15, 45000, ['Villa Orieta', 'El Cortijo', 'Puerta Roja', 'Altos del Rosario'], 'Rejas, puertas metálicas, pasamanos y soldadura en general. Hago visita sin compromiso.', true, false],
+  ];
   const PRECIO_DESTACADO = 15000;
   const DIAS_DESTACADO = 30;
   const MAX_FOTOS = 6;
@@ -173,6 +189,7 @@
           <option value="hogar">Hogar</option><option value="trabajador">Trabajador registrado</option><option value="nuevo">Trabajador nuevo</option><option value="admin">Administrador</option>
         </select></div></div>` : ''}
       <main class="wrap" id="view" tabindex="-1"></main>
+      <footer class="wrap pie small muted" id="pie"></footer>
       <nav class="nav" aria-label="Secciones"><div class="wrap" id="navbar"></div></nav>`;
     $('#go-home').onclick = () => go('buscar');
     if (demo) { const sel = $('#demo-rol'); sel.value = B().rol(); sel.onchange = () => B().setRol(sel.value); }
@@ -194,7 +211,13 @@
     renderNav(); render();
     const v = $('#view'); window.scrollTo(0, 0); v.focus({ preventScroll: true });
   }
+  function pie() {
+    const f = $('#pie'); if (!f) return;
+    const demo = S.trabajadores.some((t) => t.demo && t.estado === 'aprobado');
+    f.textContent = 'Proyecto académico de Ingeniería de Sistemas, CECAR · Plataforma en fase piloto' + (demo ? ' · Algunos perfiles son de demostración.' : '.');
+  }
   function render() {
+    pie();
     const vv = $('#view'); if (vv) vv.classList.toggle('narrow', S.view !== 'buscar');
     if (!S.loaded) { $('#view').innerHTML = '<div class="empty"><h3>Cargando trabajadores…</h3></div>'; return; }
     if (S.view === 'buscar') return renderBuscar();
@@ -205,6 +228,7 @@
   }
   // Datos nuevos: refresca sin borrar lo que la persona está escribiendo.
   function refresh() {
+    pie();
     renderNav();
     if (!S.loaded) return;
     if (S.view === 'buscar') { if ($('#resultados')) return renderResultados(); return renderBuscar(); }
@@ -612,10 +636,40 @@
     const tabs = [['pendientes', 'Por aprobar', pend], ['todos', 'Trabajadores', 0], ['destacados', 'Destacados', sol], ['reportes', 'Reportes', rep], ['indicadores', 'Indicadores', 0]];
     v.innerHTML = `<div class="stack"><h1>Panel de administración</h1>
       <div class="row" style="justify-content:space-between"><span class="small muted">Registro asistido: crea perfiles para trabajadores que no tienen cuenta o no manejan la app.</span><button class="btn primary" id="adm-nuevo">+ Registrar un trabajador</button></div>
+      <details class="card" id="demo-box"><summary><strong>Datos de demostración</strong> <span class="small muted">(${S.trabajadores.filter((t) => t.demo).length} cargados)</span></summary>
+        <div class="stack" style="margin-top:12px">
+          <p class="small muted" style="margin:0">Carga ${DEMO_TRABAJADORES.length} trabajadores ficticios para la presentación. Todos usan el WhatsApp del equipo que escribas aquí, para que ningún mensaje le llegue a un desconocido. Bórralos cuando termine la presentación.</p>
+          <label class="f">WhatsApp del equipo <input type="tel" id="demo-wa" inputmode="numeric" maxlength="10" placeholder="3001234567"></label>
+          <div class="row"><button class="btn primary" id="demo-cargar">Cargar trabajadores de demostración</button><button class="btn danger" id="demo-borrar">Borrar los de demostración</button></div>
+          <p class="err" id="demo-err" hidden></p>
+        </div></details>
       <div class="tabs" role="tablist">${tabs.map(([k, n, c]) => `<button role="tab" data-tab="${k}" aria-selected="${S.adminTab === k}">${n}${c ? ` <span class="badge b-sun">${c}</span>` : ''}</button>`).join('')}</div>
       <div id="admin-body" class="stack"></div></div>`;
     v.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { S.adminTab = b.dataset.tab; S.confirm = null; renderAdmin(); }));
     $('#adm-nuevo').onclick = () => renderFormulario({ asistido: true });
+    $('#demo-cargar').onclick = async () => {
+      const wa = waNumero($('#demo-wa').value), er = $('#demo-err');
+      if (!/^3\d{9}$/.test(wa)) { er.textContent = 'Escribe un WhatsApp del equipo de 10 dígitos que empiece por 3.'; er.hidden = false; return; }
+      er.hidden = true; const btn = $('#demo-cargar'); btn.disabled = true;
+      const ahora = new Date(), iso = (d) => new Date(ahora.getTime() - d * 864e5).toISOString();
+      try {
+        for (let i = 0; i < DEMO_TRABAJADORES.length; i++) {
+          const [nombre, oficio, experiencia, tarifa, zonas, descripcion, ced, dest] = DEMO_TRABAJADORES[i];
+          btn.textContent = `Cargando ${i + 1} de ${DEMO_TRABAJADORES.length}…`;
+          await B().crearTrabajador('demo-' + String(i + 1).padStart(2, '0'), {
+            nombre, oficio, whatsapp: wa, experiencia, tarifa, zonas, descripcion, miniatura: '', fotos: [],
+            estado: 'aprobado', disponible: i % 5 !== 4, cedulaVerificada: ced, destacado: dest, destacadoHasta: dest ? iso(-DIAS_DESTACADO) : '',
+            solicitudDestacado: false, motivoRechazo: '', autorizacion: true, fechaAutorizacion: iso(20 - i), creado: iso(20 - i), actualizado: iso(3), demo: true
+          });
+        }
+        toast(DEMO_TRABAJADORES.length + ' trabajadores de demostración cargados'); S.adminTab = 'todos'; renderAdmin();
+      } catch (e) { er.textContent = 'No se pudo cargar: ' + (e.message || e); er.hidden = false; btn.disabled = false; btn.textContent = 'Cargar trabajadores de demostración'; }
+    };
+    $('#demo-borrar').onclick = async () => {
+      const lst = S.trabajadores.filter((t) => t.demo); const btn = $('#demo-borrar'); btn.disabled = true;
+      try { for (const t of lst) await B().eliminarTrabajador(t.id, t.fotos || []); toast(lst.length + ' trabajadores de demostración borrados'); renderAdmin(); }
+      catch (e) { const er = $('#demo-err'); er.textContent = 'No se pudo borrar: ' + (e.message || e); er.hidden = false; btn.disabled = false; }
+    };
     renderAdminBody();
   }
   function reportesAbiertos() {

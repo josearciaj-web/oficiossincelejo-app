@@ -332,6 +332,30 @@ caso('CP24', 'RF16', 'Tarifa de visita en la búsqueda y el perfil', 'Cada tarje
   return 'Tarjeta: "' + card.replace(/\s+/g, ' ').trim() + '"; el perfil muestra la misma tarifa';
 });
 
+caso('CP25', 'Demo', 'Carga y borrado de trabajadores de demostración', 'El administrador carga 12 perfiles ficticios con el WhatsApp del equipo y luego los borra', async (b) => {
+  const { ctx, page } = await abrir(b, 'admin');
+  await nav(page, 'buscar');
+  const antes = await page.$$eval('#resultados .w', (e) => e.length);
+  await nav(page, 'admin');
+  await page.click('#demo-box summary');
+  await page.fill('#demo-wa', '3001112233');
+  await page.click('#demo-cargar');
+  await page.waitForFunction(() => /12 cargados/.test(document.querySelector('#demo-box summary').textContent), null, { timeout: 15000 });
+  await nav(page, 'buscar');
+  const despues = await page.$$eval('#resultados .w', (e) => e.length);
+  const wa = await page.getAttribute('#resultados .w[data-perfil="demo-01"] [data-wa]', 'href');
+  const pie = await page.textContent('#pie');
+  await nav(page, 'admin');
+  await page.click('#demo-box summary');
+  await page.click('#demo-borrar');
+  await page.waitForFunction(() => /0 cargados/.test(document.querySelector('#demo-box summary').textContent), null, { timeout: 15000 });
+  await nav(page, 'buscar');
+  const final = await page.$$eval('#resultados .w', (e) => e.length);
+  await ctx.close();
+  if (despues !== antes + 12 || final !== antes || !wa.includes('573001112233') || !/demostración/.test(pie)) throw new Error([antes, despues, final, wa, pie].join(' | '));
+  return `${antes} → ${despues} → ${final} trabajadores; WhatsApp del equipo en todos; aviso en el pie mientras existen`;
+});
+
 (async () => {
   // imagen de prueba
   if (!fs.existsSync(IMG)) {
