@@ -2,7 +2,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { firebaseConfig } from './firebase-config.js';
+import { firebaseConfig, adminCorreos } from './firebase-config.js';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -36,7 +36,10 @@ window.Backend = {
       }
       uid = u.uid;
       let isAdmin = false;
-      if (!u.isAnonymous) { try { isAdmin = (await getDoc(doc(db, 'admins', u.uid))).exists(); } catch (e) { isAdmin = false; } }
+      if (!u.isAnonymous) {
+        isAdmin = (adminCorreos || []).includes(String(u.email || '').toLowerCase());
+        if (!isAdmin) { try { isAdmin = (await getDoc(doc(db, 'admins', u.uid))).exists(); } catch (e) { isAdmin = false; } }
+      }
       cb({ uid: u.uid, isAdmin, canWrite: true, signedIn: true, anon: u.isAnonymous, email: u.email || '' });
     });
   },

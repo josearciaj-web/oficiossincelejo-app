@@ -82,4 +82,6 @@ test('Nadie suma contactos con el id de otra sesión', () => assertFails(setDoc(
 test('El autor lee su reporte', () => assertSucceeds(getDoc(doc(db('hogar1'), 'reportes/hogar1'))));
 test('Otro usuario no lee reportes ajenos', () => assertFails(getDoc(doc(db('t9'), 'reportes/hogar1'))));
 test('El administrador lee los reportes', () => assertSucceeds(getDocs(collection(db('admin1'), 'reportes'))));
+test('El correo administrador aprueba perfiles', () => assertSucceeds(updateDoc(doc(env.authenticatedContext('jose1', { email: 'Jose.Arciaj@cecar.edu.co', firebase: { sign_in_provider: 'password' } }).firestore(), 'trabajadores/w2'), { estado: 'aprobado' })));
+test('Otro correo no es administrador', () => assertFails(updateDoc(doc(env.authenticatedContext('otro1', { email: 'otro@gmail.com', firebase: { sign_in_provider: 'password' } }).firestore(), 'trabajadores/w2'), { estado: 'aprobado' })));
 test('Nadie se nombra administrador desde la app', () => assertFails(setDoc(doc(db('t9'), 'admins/t9'), { rol: 'admin' })));

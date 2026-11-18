@@ -5,7 +5,14 @@ service cloud.firestore {
 
     function conSesion() { return request.auth != null; }
     function registrado() { return conSesion() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
-    function esAdmin() { return conSesion() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    // Administradores: por correo (lista fija) o por documento admins/{UID} creado en la consola.
+    function correoAdmin() {
+      return request.auth.token.email is string
+        && request.auth.token.email.lower() in ['jose.arciaj@cecar.edu.co'];
+    }
+    function esAdmin() {
+      return registrado() && (correoAdmin() || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
     function soloCambia(campos) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos); }
     function whatsappValido() { return request.resource.data.whatsapp is string && request.resource.data.whatsapp.matches('^3[0-9]{9}$'); }
     function tamanos() {
